@@ -5,5 +5,5 @@ import { visitcounter, visitorcounterget } from '../controller/visitor.controlle
 
 export const visitorroute=express.Router()
 
-visitorroute.post('/',visitcounter)
-visitorroute.get('/',visitorcounterget)
+visitorroute.post('/visitor',visitcounter)
+visitorroute.get('/visitorget',visitorcounterget)
