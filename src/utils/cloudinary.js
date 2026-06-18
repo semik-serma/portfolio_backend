@@ -2,32 +2,31 @@ import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import multer from 'multer';
 
+cloudinary.config({
+    cloud_name: "dghmvblkt",
+    api_key: "744943472684582",
+    api_secret: "jjL3PlgvSogdfMUrjSGAcwHgjYU",
+});
 
-    // Configuration
-    cloudinary.config({ 
-      cloud_name: "dghmvblkt",
-      api_key: "744943472684582",
-      api_secret: "jjL3PlgvSogdfMUrjSGAcwHgjYU", // Click 'View API Keys' above to copy your API secret
-    });
-    
-    // Upload an image
-     const uploadResult = await cloudinary.uploader
-       .upload(
-           'https://res.cloudinary.com/demo/image/upload/getting-started/shoes.jpg', {
-               public_id: 'shoes',
-           }
-       )
-       .catch((error) => {
-           console.log(error);
-       })
+const reelStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: async (req, file) => {
+        const isVideo = file.mimetype?.startsWith('video/');
+        return {
+            folder: 'reels',
+            resource_type: 'auto',
+            allowed_formats: isVideo ? ['mp4', 'mov', 'avi', 'webm', 'mkv'] : ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+        };
+    },
+});
 
-       const storage = new CloudinaryStorage({
-         cloudinary: cloudinary,
-         params: {
-           folder: 'article.controller.js',
-         },
-       });
-        
-       export const upload = multer({ storage: storage });
-        
-      
+const imageStorage = new CloudinaryStorage({
+    cloudinary: cloudinary,
+    params: {
+        folder: 'article-images',
+        allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp']
+    },
+});
+
+export const uploadVideo = multer({ storage: reelStorage });
+export const uploadImage = multer({ storage: imageStorage });

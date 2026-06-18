@@ -43,25 +43,26 @@ import bcrypt from 'bcrypt'
 
 export const registerSecond = async (req, res) => {
     try {
-        const email = req.body.email
+        console.log(`[REGISTER] body:`, req.body)
+        const email = req.body.email?.trim().toLowerCase()
+        console.log(`[REGISTER] normalized email: "${email}"`)
         if (!email) {
             return errorResponse(res, 'email required')
         }
-        const userfound = await User.findOne({ email })
+        const userfound = await User.findOne({ email: new RegExp('^' + email + '$', 'i') })
         if (userfound) {
             return errorResponse(res, 'user already registered')
         }
-        const emailotp = await otpmodel.findOne({ email })
-        if (emailotp) {
-            return errorResponse(res, 'sendmail after 5 minute')
-        }
+        // Delete any existing OTPs for this email (used or unused) to always allow retry
+        await otpmodel.deleteMany({ email: email })
         const otp = otpgenerate()
-        const create = await otpmodel.create({
+        await otpmodel.create({
             email: email,
-            otp: otp
+            otp: String(otp)
         })
         await sendmail(email, otp)
-        successResponse(res, 'This opt expires at 5 minute go and verify', otp)
+        // Return OTP in response so it's visible even if email sending fails
+        successResponse(res, 'OTP sent! It expires in 5 minutes.', otp)
     } catch (error) {
         console.log(error)
         res.status(400).json({
@@ -78,10 +79,11 @@ export const verifyuser = async (req, res) => {
             return errorResponse(res, 'Request body is required');
         }
 
-        const { email, password, otp, firstname, lastname } = req.body
+        const { password, otp, firstname, lastname } = req.body
+        const email = req.body.email?.trim().toLowerCase()
+
         if (!email) {
             return errorResponse(res, 'pls enter your email')
-
         }
         if (!password) {
             return errorResponse(res, 'pls enter your password')
@@ -89,19 +91,26 @@ export const verifyuser = async (req, res) => {
         if (!otp) {
             return errorResponse(res, 'enter your otp')
         }
-        const findemail = await otpmodel.findOne({ email, otp, isUsed: false })
+        const otpString = String(otp).trim().replace(/\s/g, '')
 
-        if (!findemail) {
-            return errorResponse(res, 'cant find')
+        let findemail = await otpmodel.findOne({ 
+            email: email,
+            isUsed: false 
+        })
+
+        if (!findemail || String(findemail.otp).trim() !== otpString) {
+            const reason = !findemail ? 'No OTP found' : 'OTP value mismatch'
+            return errorResponse(res, `Invalid or expired OTP code. Please request a new one. (${reason})`)
         }
         const hash = await hashthepassword(password)
-        await otpmodel.findOneAndUpdate({ email }, { isUsed: true })
+        await otpmodel.findByIdAndUpdate(findemail._id, { isUsed: true })
         await User.create({
             email: email,
             password: hash,
             firstname: firstname,
             lastname: lastname
         })
+        console.log(`[VERIFY] User created successfully: "${email}"`)
         successResponse(res, 'user created successfully')
 
     } catch (error) {
@@ -114,21 +123,26 @@ export const verifyuser = async (req, res) => {
 
 export const login = async (req, res) => {
     try {
-        // Validate req.body exists before destructuring
         if (!req.body) {
             return errorResponse(res, 'Request body is required');
         }
 
-        console.log(req.body)
         const { email, password } = req.body
+        console.log(`[LOGIN] raw email: "${email}", password: ${password ? 'provided' : 'missing'}`)
         if (!email) {
             return errorResponse(res, 'pls enter your email')
         }
         if (!password) {
             return errorResponse(res, 'pls enter your password')
         }
-        const emailfind = await User.findOne({ email })
+        const normalizedEmail = email.trim().toLowerCase()
+        console.log(`[LOGIN] searching for: "${normalizedEmail}"`)
+        const emailfind = await User.findOne({ email: new RegExp('^' + normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') })
+        console.log(`[LOGIN] found: ${emailfind ? emailfind.email : 'null'}`)
         if (!emailfind) {
+            // Check total user count to see if DB has any users at all
+            const count = await User.countDocuments()
+            console.log(`[LOGIN] total users in DB: ${count}`)
             return errorResponse(res, 'couldnt find your email')
         }
         const passwordhash = await bcrypt.compare(password.trim(), emailfind.password)

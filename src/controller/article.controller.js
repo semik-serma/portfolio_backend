@@ -54,9 +54,13 @@ export const getarticlebyid=async(req,res)=>{
     try {
         const id=req.params.id
         const articlesbyid=await Article.findById(id)
+        if (!articlesbyid) {
+            return res.status(404).json({ message: "Article not found" });
+        }
         successResponse(res,'successfully fetched articlesbyid',articlesbyid)
     } catch (error) {
-        console.log('error at getarticlesbyid')
+        console.log('error at getarticlesbyid:', error.message)
+        res.status(400).json({ message: "Invalid Article ID or error fetching article" })
     }
 }
 

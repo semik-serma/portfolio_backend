@@ -1,10 +1,11 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-export const connectdb=async()=>{
-    try {
-        await mongoose.connect('mongodb+srv://semikserma:semikserma@cluster0.dmkxhjw.mongodb.net/?appName=Cluster0') 
-        console.log('db connected successfully')
-    } catch (error) {
-        console.log('error at connecting database')
-    }
-}
+export const connectdb = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI)
+    console.log("Successfully connected to MongoDB!");
+  } catch (error) {
+    console.error("DB connection error:", error.message);
+    process.exit(1);
+  }
+};

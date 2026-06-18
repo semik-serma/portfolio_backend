@@ -1,5 +1,6 @@
 import otpGenerator from 'otp-generator';
 
 export const otpgenerate=()=>{
-    return otpGenerator.generate(6, { upperCaseAlphabets: false, specialChars: false });
+    const result = otpGenerator.generate(6, { upperCaseAlphabets: false, lowerCaseAlphabets: false, specialChars: false });
+    return typeof result === 'string' ? result : result.otp;
 }
